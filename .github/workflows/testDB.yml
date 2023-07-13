@@ -8,7 +8,7 @@ on:
 jobs:
   build:
 
-    runs-on: selfhostedagent
+    runs-on: self-hosted
     
     steps:
       - name: Checkout repository
