@@ -26,4 +26,5 @@ jobs:
           version: '>= 363.0.0'
       
       - name: 'Use gcloud CLI'
-        run: 'gcloud sql connect posgresql --user=postgres'
+        run: |
+          psql "host=10.148.144.6 port=5432 sslmode=disable dbname=postgres user=postgres"
