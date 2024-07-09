@@ -1,0 +1,452 @@
+{
+            "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+            "contentVersion": "1.0.0.0",
+            "variables": {
+                "Base_ResourceGroup": "rg-nvi-genlite-stg",
+                "Vnet_Name": "vnet-nvi-genlite-stage-main",
+                //"VNETid": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.Network/virtualNetworks/', variables('VNET_Name'))]",
+                
+                "agsSubnetName": "snet-nvipubstage-agw",
+                "agsSubnetID" : "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.Network/virtualNetworks/', variables('VNET_Name'), '/subnets/', variables('agsSubnetName'))]",
+                "appSubnetName": "snet-nvipubstage-app",
+                "appSubnetID" : "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.Network/virtualNetworks/', variables('VNET_Name'), '/subnets/', variables('appSubnetName'))]",
+                "vmsubnetName": "snet-nvipubstage-vm",
+                "VMSubnetID" : "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.Network/virtualNetworks/', variables('VNET_Name'), '/subnets/', variables('vmsubnetName'))]",
+                "bastionSubnetName": "AzureBastionSubnet",
+                "bastionSubnetID" : "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.Network/virtualNetworks/', variables('VNET_Name'), '/subnets/', variables('bastionSubnetName'))]",
+                "ACRSubnetName": "snet-nvipubstage-acr",
+                "ACRSubnetID": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.Network/virtualNetworks/', variables('VNET_Name'), '/subnets/', variables('ACRSubnetName'))]",
+
+                "managedIdentity_Name": "id-genlite-stage",
+                "keyVault_Name": "kv-nvi-genlite-stage",
+                "appServiceplanName": "asp-genlite-stage",
+                "appServiceCoreName" : "app-nvi-stage-genlitecore",
+                "appServicecodetranslatorName" : "app-nvi-stage-genlitecodetranslator",
+                "SecretName": "ACRPassword"
+            },
+
+            "resources": [
+                // App Services Core
+                {
+                            "type": "Microsoft.Web/sites",
+                            "apiVersion": "2022-09-01",
+                            "name": "[variables('appServiceCoreName')]",
+                            "location": "East US",
+                            "tags": {
+                                "Environment" : "Stage",
+                                "CreatedBy": "ARCDevops"
+                            },
+                            "dependsOn": [],
+                            "kind": "app,linux,container",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', variables('managedIdentity_Name'))]" : {}
+                                }
+                            },
+                            "properties": {
+                                "enabled": true,
+                                "hostNameSslStates": [
+                                    {
+                                        "name": "genwizdocker.azurewebsites.net",
+                                        "sslState": "Disabled",
+                                        "hostType": "Standard"
+                                    },
+                                    {
+                                        "name": "genwizdocker.scm.azurewebsites.net",
+                                        "sslState": "Disabled",
+                                        "hostType": "Repository"
+                                    }
+                                ],
+                                "serverFarmId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.Web/serverFarms/', variables('appServiceplanName'))]",
+                                "reserved": true,
+                                "isXenon": false,
+                                "hyperV": false,
+                                "vnetImagePullEnabled": true,
+                                "vnetContentShareEnabled": true,
+                                "siteConfig": {
+                                    "numberOfWorkers": 1,
+                                    "linuxFxVersion": "crnvistagegenlite.azurecr.io/254680_genlite:595",
+                                    "acrUseManagedIdentityCreds": true,
+                                    "alwaysOn": true,
+                                    "http20Enabled": false,
+                                    "functionAppScaleLimit": 0,
+                                    "minimumElasticInstanceCount": 0,
+                                    "appSettings": [
+                                        {
+                                          "name": "DOCKER_REGISTRY_SERVER_PASSWORD",
+                                          "value": "[concat('@Microsoft.KeyVault(VaultName=', variables('keyVault_Name') ,';SecretName=', variables('SecretName'), ')')]"
+                                        },
+                                        {
+                                          "name": "DOCKER_REGISTRY_SERVER_URL",
+                                          "value": "crnvistagegenlite.azurecr.io"
+                                        },
+                                        {
+                                          "name": "DOCKER_REGISTRY_SERVER_USERNAME",
+                                          "value": "crnvistagegenlite"
+                                        },
+                                        {
+                                          "name": "WEBSITE_ENABLE_SYNC_UPDATE_SITE",
+                                          "value": "true"
+                                        },
+                                        {
+                                          "name": "WEBSITES_PORT",
+                                          "value": "8000"
+                                        },
+                                        {
+                                          "name": "WEBSITE_HTTPLOGGING_RETENTION_DAYS",
+                                          "value": "2"
+                                        },
+                                        {
+                                          "name": "WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+                                          "value": "true"
+                                        },
+                                        {
+                                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                                          "value": "8db62729-3d7d-402e-a361-341b4c3038f2"
+                                        },
+                                        {
+                                          "name": "WEBSITE_PULL_IMAGE_OVER_VNET",
+                                          "value": "true"
+                                        }
+                                    ]
+                                },
+                                "scmSiteAlsoStopped": false,
+                                "clientAffinityEnabled": false,
+                                "clientCertEnabled": false,
+                                "clientCertMode": "Required",
+                                "hostNamesDisabled": false,
+                                "containerSize": 0,
+                                "dailyMemoryTimeQuota": 0,
+                                "httpsOnly": true,
+                                "redundancyMode": "None",
+                                "publicNetworkAccess": "Enabled",
+                                "storageAccountRequired": false,
+                                "keyVaultReferenceIdentity": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', variables('managedIdentity_Name'))]"
+                            }
+                },
+                {
+                            "type": "Microsoft.Web/sites/config",
+                            "apiVersion": "2022-09-01",
+                            "name": "[concat(variables('appServiceCoreName'), '/web')]",
+                            "location": "East US",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Web/sites', variables('appServiceCoreName'))]"
+                            ],
+                            "tags": {
+                                "Environment" : "Stage",
+                                "CreatedBy": "ARCDevops"
+                            },
+                            "properties": {
+                                "numberOfWorkers": 1,
+                                "defaultDocuments": [],
+                                "netFrameworkVersion": "v4.0",
+                                "linuxFxVersion": "crnvistagegenlite.azurecr.io/254680_genlite:595",
+                                "requestTracingEnabled": false,
+                                "remoteDebuggingEnabled": false,
+                                "remoteDebuggingVersion": "VS2019",
+                                "httpLoggingEnabled": true,
+                                "acrUseManagedIdentityCreds": true,
+                                "acrUserManagedIdentityID": "53e44e7b-707d-4206-935b-18f04a2ef003",
+                                "logsDirectorySizeLimit": 35,
+                                "detailedErrorLoggingEnabled": true,
+                                "publishingUsername": "$GenwizDocker",
+                                "scmType": "VSTSRM",
+                                "use32BitWorkerProcess": true,
+                                "webSocketsEnabled": false,
+                                "alwaysOn": true,
+                                "managedPipelineMode": "Integrated",
+                                "virtualApplications": [
+                                    {
+                                        "virtualPath": "/",
+                                        "physicalPath": "site\\wwwroot",
+                                        "preloadEnabled": true
+                                    }
+                                ],
+                                "loadBalancing": "LeastRequests",
+                                "experiments": {
+                                    "rampUpRules": []
+                                },
+                                "autoHealEnabled": false,
+                                "vnetRouteAllEnabled": true,
+                                "vnetPrivatePortsCount": 0,
+                                "publicNetworkAccess": "Enabled",
+                                "localMySqlEnabled": false,
+                                "ipSecurityRestrictions": [
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 100,
+                                        "name": "[variables('agsSubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('agsSubnetID')]"
+                                    },
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 101,
+                                        "name": "[variables('appSubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('appSubnetID')]"
+                                    },
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 102,
+                                        "name": "[variables('vmsubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('VMSubnetID')]"
+                                    },
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 103,
+                                        "name": "[variables('bastionSubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('bastionSubnetID')]"
+                                    },
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 104,
+                                        "name": "[variables('ACRSubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('ACRSubnetID')]"
+                                    }
+
+                                ],
+                                "ftpsState": "Disabled",
+                                "ipSecurityRestrictionsDefaultAction": "Deny",
+                                "scmIpSecurityRestrictionsDefaultAction": "Allow",
+                                "scmIpSecurityRestrictionsUseMain": true,
+                                "http20Enabled": false,
+                                "minTlsVersion": "1.2",
+                                "scmMinTlsVersion": "1.2",
+                                "preWarmedInstanceCount": 0,
+                                "elasticWebAppScaleLimit": 0,
+                                "functionsRuntimeScaleMonitoringEnabled": false,
+                                "minimumElasticInstanceCount": 0,
+                                "azureStorageAccounts": {}
+                            }
+                },
+                {
+                            "type": "Microsoft.Web/sites/networkConfig",  
+                            "name": "[concat(variables('appServiceCoreName'),'/VirtualNetwork')]",
+                            "apiVersion": "2018-02-01",
+                            "location": "East US",
+                            "dependsOn": [
+                                  "[resourceId('Microsoft.Web/sites', variables('appServiceCoreName'))]"
+                            ],
+                            "properties": {
+                              "subnetResourceid": "[variables('appSubnetID')]",
+                              "swiftSupported": true
+                            }
+                },
+                // App Services codetranslator
+                {
+                            "type": "Microsoft.Web/sites",
+                            "apiVersion": "2022-09-01",
+                            "name": "[variables('appServicecodetranslatorName')]",
+                            "location": "East US",
+                            "tags": {
+                                "Environment" : "Stage",
+                                "CreatedBy": "ARCDevops"
+                            },
+                            "dependsOn": [],
+                            "kind": "app,linux,container",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', variables('managedIdentity_Name'))]" : {}
+                                }
+                            },
+                            "properties": {
+                                "enabled": true,
+                                "hostNameSslStates": [
+                                    {
+                                        "name": "genwizdocker.azurewebsites.net",
+                                        "sslState": "Disabled",
+                                        "hostType": "Standard"
+                                    },
+                                    {
+                                        "name": "genwizdocker.scm.azurewebsites.net",
+                                        "sslState": "Disabled",
+                                        "hostType": "Repository"
+                                    }
+                                ],
+                                "serverFarmId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.Web/serverFarms/', variables('appServiceplanName'))]",
+                                "reserved": true,
+                                "isXenon": false,
+                                "hyperV": false,
+                                "vnetImagePullEnabled": true,
+                                "vnetContentShareEnabled": true,
+                                "siteConfig": {
+                                    "numberOfWorkers": 1,
+                                    "linuxFxVersion": "crnvistagegenlite.azurecr.io/254680_genlite:595",
+                                    "acrUseManagedIdentityCreds": true,
+                                    "alwaysOn": true,
+                                    "http20Enabled": false,
+                                    "functionAppScaleLimit": 0,
+                                    "minimumElasticInstanceCount": 0,
+                                    "appSettings": [
+                                        {
+                                          "name": "DOCKER_REGISTRY_SERVER_PASSWORD",
+                                          "value": "[concat('@Microsoft.KeyVault(VaultName=', variables('keyVault_Name') ,';SecretName=', variables('SecretName'), ')')]"
+                                        },
+                                        {
+                                          "name": "DOCKER_REGISTRY_SERVER_URL",
+                                          "value": "crnvistagegenlite.azurecr.io"
+                                        },
+                                        {
+                                          "name": "DOCKER_REGISTRY_SERVER_USERNAME",
+                                          "value": "crnvistagegenlite"
+                                        },
+                                        {
+                                          "name": "WEBSITE_ENABLE_SYNC_UPDATE_SITE",
+                                          "value": "true"
+                                        },
+                                        {
+                                          "name": "WEBSITES_PORT",
+                                          "value": "8000"
+                                        },
+                                        {
+                                          "name": "WEBSITE_HTTPLOGGING_RETENTION_DAYS",
+                                          "value": "2"
+                                        },
+                                        {
+                                          "name": "WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+                                          "value": "true"
+                                        },
+                                        {
+                                          "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                                          "value": "8db62729-3d7d-402e-a361-341b4c3038f2"
+                                        },
+                                        {
+                                          "name": "WEBSITE_PULL_IMAGE_OVER_VNET",
+                                          "value": "true"
+                                        }
+                                    ]
+                                },
+                                "scmSiteAlsoStopped": false,
+                                "clientAffinityEnabled": false,
+                                "clientCertEnabled": false,
+                                "clientCertMode": "Required",
+                                "hostNamesDisabled": false,
+                                "containerSize": 0,
+                                "dailyMemoryTimeQuota": 0,
+                                "httpsOnly": true,
+                                "redundancyMode": "None",
+                                "publicNetworkAccess": "Enabled",
+                                "storageAccountRequired": false,
+                                "keyVaultReferenceIdentity": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', variables('Base_ResourceGroup'), '/providers/Microsoft.ManagedIdentity/userAssignedIdentities/', variables('managedIdentity_Name'))]"
+                            }
+                },
+                {
+                            "type": "Microsoft.Web/sites/config",
+                            "apiVersion": "2022-09-01",
+                            "name": "[concat(variables('appServicecodetranslatorName'), '/web')]",
+                            "location": "East US",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Web/sites', variables('appServicecodetranslatorName'))]"
+                            ],
+                            "tags": {
+                                "Environment" : "Stage",
+                                "CreatedBy": "ARCDevops"
+                            },
+                            "properties": {
+                                "numberOfWorkers": 1,
+                                "defaultDocuments": [],
+                                "netFrameworkVersion": "v4.0",
+                                "linuxFxVersion": "crnvistagegenlite.azurecr.io/254680_genlite:595",
+                                "requestTracingEnabled": false,
+                                "remoteDebuggingEnabled": false,
+                                "remoteDebuggingVersion": "VS2019",
+                                "httpLoggingEnabled": true,
+                                "acrUseManagedIdentityCreds": true,
+                                "acrUserManagedIdentityID": "53e44e7b-707d-4206-935b-18f04a2ef003",
+                                "logsDirectorySizeLimit": 35,
+                                "detailedErrorLoggingEnabled": true,
+                                "publishingUsername": "$GenwizDocker",
+                                "scmType": "VSTSRM",
+                                "use32BitWorkerProcess": true,
+                                "webSocketsEnabled": false,
+                                "alwaysOn": true,
+                                "managedPipelineMode": "Integrated",
+                                "virtualApplications": [
+                                    {
+                                        "virtualPath": "/",
+                                        "physicalPath": "site\\wwwroot",
+                                        "preloadEnabled": true
+                                    }
+                                ],
+                                "loadBalancing": "LeastRequests",
+                                "experiments": {
+                                    "rampUpRules": []
+                                },
+                                "autoHealEnabled": false,
+                                "vnetRouteAllEnabled": true,
+                                "vnetPrivatePortsCount": 0,
+                                "publicNetworkAccess": "Enabled",
+                                "localMySqlEnabled": false,
+                                "ipSecurityRestrictions": [
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 100,
+                                        "name": "[variables('agsSubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('agsSubnetID')]"
+                                    },
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 101,
+                                        "name": "[variables('appSubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('appSubnetID')]"
+                                    },
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 102,
+                                        "name": "[variables('vmsubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('VMSubnetID')]"
+                                    },
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 103,
+                                        "name": "[variables('bastionSubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('bastionSubnetID')]"
+                                    },
+                                    {
+
+                                        "action": "Allow",
+                                        "priority": 104,
+                                        "name": "[variables('ACRSubnetName')]",
+                                        "vnetSubnetResourceId": "[variables('ACRSubnetID')]"
+                                    }
+
+                                ],
+                                "ftpsState": "Disabled",
+                                "ipSecurityRestrictionsDefaultAction": "Deny",
+                                "scmIpSecurityRestrictionsDefaultAction": "Allow",
+                                "scmIpSecurityRestrictionsUseMain": true,
+                                "http20Enabled": false,
+                                "minTlsVersion": "1.2",
+                                "scmMinTlsVersion": "1.2",
+                                "preWarmedInstanceCount": 0,
+                                "elasticWebAppScaleLimit": 0,
+                                "functionsRuntimeScaleMonitoringEnabled": false,
+                                "minimumElasticInstanceCount": 0,
+                                "azureStorageAccounts": {}
+                            }
+                },
+                {
+                            "type": "Microsoft.Web/sites/networkConfig",  
+                            "name": "[concat(variables('appServicecodetranslatorName'),'/VirtualNetwork')]",
+                            "apiVersion": "2018-02-01",
+                            "location": "East US",
+                            "dependsOn": [
+                                  "[resourceId('Microsoft.Web/sites', variables('appServicecodetranslatorName'))]"
+                            ],
+                            "properties": {
+                              "subnetResourceid": "[variables('appSubnetID')]",
+                              "swiftSupported": true
+                            }
+                }
+            ]
+}
