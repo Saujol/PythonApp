@@ -16,17 +16,21 @@ jobs:
     - name: Run initial tasks
       run: echo "Running some tasks..."
 
-    - name: Manual Approval Step
-      if: always()
-      uses: actions/github-script@v6
-      with:
-        script: |
-          const prompt = await github.actions.getWorkflowRun({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            run_id: context.runId,
-          });
-          return prompt;
+  # Manual approval step
+  approval:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Await Manual Approval
+      run: |
+        echo "Please approve to continue..."
+        echo "Waiting for manual approval..."
+      timeout-minutes: 1440 # Timeout for 24 hours (can be adjusted as needed)
 
-    - name: Approval required to proceed
-      run: python ./approval_prompt.py
+  # Continue workflow after approval
+  deploy:
+    runs-on: ubuntu-latest
+    needs: approval
+    steps:
+    - name: Approval successful, running further tasks
+      run: echo "Proceeding with the rest of the tasks..."
