@@ -1,30 +1,24 @@
-import time
-import os
+def get_user_approval():
+    # Ask for user input to approve or reject the task
+    decision = input("Do you approve the continuation of the workflow? (yes/no): ").strip().lower()
 
-def check_for_approval():
-    print("Waiting for approval...")
-    
-    # Simulate polling for user approval (you can replace this with an actual approval check, e.g., reading from a file, API)
-    while True:
-        # Look for an "approval.txt" file with 'approve' or 'reject'
-        if os.path.exists("approval.txt"):
-            with open("approval.txt", "r") as f:
-                decision = f.read().strip().lower()
-                if decision == "approve":
-                    print("Approval granted. Proceeding with the pipeline.")
-                    return True
-                elif decision == "reject":
-                    print("Approval rejected. Exiting the pipeline.")
-                    return False
-        time.sleep(10)  # Poll every 10 seconds
+    if decision == "yes":
+        print("Approval granted. Proceeding with the pipeline.")
+        return True
+    elif decision == "no":
+        print("Approval rejected. Exiting the pipeline.")
+        return False
+    else:
+        print("Invalid input. Please enter 'yes' or 'no'.")
+        return get_user_approval()
 
 def main():
-    approved = check_for_approval()
-    
+    approved = get_user_approval()
+
     if approved:
-        exit(0)  # Exit normally, which means continue the pipeline
+        exit(0)  # Continue the pipeline (normal exit)
     else:
-        exit(1)  # Exit with failure, which means stop the pipeline
+        exit(1)  # Stop the pipeline (non-zero exit code to indicate failure)
 
 if __name__ == "__main__":
     main()
