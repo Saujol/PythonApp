@@ -1,0 +1,32 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Run initial tasks
+      run: echo "Running some tasks..."
+
+    - name: Manual Approval Step
+      if: always()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const prompt = await github.actions.getWorkflowRun({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            run_id: context.runId,
+          });
+          return prompt;
+
+    - name: Approval required to proceed
+      run: python ./approval_prompt.py
